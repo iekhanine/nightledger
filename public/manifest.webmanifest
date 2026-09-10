@@ -1,12 +1,12 @@
 {
   "name": "NightLedger",
   "short_name": "NightLedger",
-  "description": "Rapid incident and patron capture for licensed venues.",
+  "description": "One-button incident capture for licensed venues.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#10181d",
-  "theme_color": "#10181d",
+  "background_color": "#0f171c",
+  "theme_color": "#0f171c",
   "orientation": "portrait",
   "icons": [
     {
@@ -25,15 +25,9 @@
   "shortcuts": [
     {
       "name": "Quick Capture",
-      "short_name": "Quick Capture",
-      "description": "Open NightLedger ready to confirm a new event.",
-      "url": "/?quick=1",
-      "icons": [
-        {
-          "src": "/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "short_name": "Capture",
+      "description": "Open NightLedger capture.",
+      "url": "/"
     }
   ]
 }
