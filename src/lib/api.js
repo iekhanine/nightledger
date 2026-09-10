@@ -28,9 +28,15 @@ export async function signIn(email, password) {
 }
 
 export async function signUp(email, password) {
+  const emailRedirectTo =
+    `${window.location.origin}/admin?auth=confirmed`;
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo,
+    },
   });
 
   if (error) {
@@ -38,6 +44,97 @@ export async function signUp(email, password) {
   }
 
   return data;
+}
+
+export async function completeAuthRedirect() {
+  /*
+   * Supabase's normal browser confirmation flow is handled by
+   * detectSessionInUrl in src/lib/supabase.js.
+   *
+   * This helper also supports a ?code= callback if the project is
+   * ever switched to a code-based auth flow.
+   */
+  const url =
+    new URL(
+      window.location.href
+    );
+
+  const code =
+    url.searchParams.get(
+      "code"
+    );
+
+  if (
+    code
+  ) {
+    const {
+      error,
+    } =
+      await supabase
+        .auth
+        .exchangeCodeForSession(
+          code
+        );
+
+    if (
+      error
+    ) {
+      throw error;
+    }
+
+    url.searchParams.delete(
+      "code"
+    );
+
+    window.history.replaceState(
+      {},
+      "",
+      `${url.pathname}${url.search}${url.hash}`
+    );
+  }
+}
+
+export function cleanAuthCallbackUrl() {
+  const url =
+    new URL(
+      window.location.href
+    );
+
+  let changed =
+    false;
+
+  [
+    "auth",
+    "type",
+    "token_hash",
+  ].forEach(
+    (
+      key
+    ) => {
+      if (
+        url.searchParams.has(
+          key
+        )
+      ) {
+        url.searchParams.delete(
+          key
+        );
+
+        changed =
+          true;
+      }
+    }
+  );
+
+  if (
+    changed
+  ) {
+    window.history.replaceState(
+      {},
+      "",
+      `${url.pathname}${url.search}${url.hash}`
+    );
+  }
 }
 
 export async function signOut() {

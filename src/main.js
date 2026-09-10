@@ -1,6 +1,8 @@
 import "./base.css";
 
 import {
+  cleanAuthCallbackUrl,
+  completeAuthRedirect,
   getGuestCaptureContext,
   getMyContext,
   getSession,
@@ -220,6 +222,12 @@ async function getMobileContext() {
 }
 
 async function bootAdmin() {
+  /*
+   * If the browser arrived from a confirmation link, finish the
+   * Supabase callback before deciding whether the user is signed in.
+   */
+  await completeAuthRedirect();
+
   const session =
     await getSession();
 
@@ -238,6 +246,8 @@ async function bootAdmin() {
 
     return;
   }
+
+  cleanAuthCallbackUrl();
 
   const context =
     await getMyContext();

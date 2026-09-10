@@ -208,3 +208,42 @@ named import from it has a matching export.
 
 It also completes the Admin → Devices integration that was partially
 inserted in v0.3.1.
+
+
+## v0.3.2 — Signup / confirmation UX
+
+NightLedger now handles both Supabase email-auth modes correctly.
+
+### Recommended during development
+
+Turn **Confirm email OFF** in Supabase.
+
+Then:
+
+```text
+Create account
+  ↓
+automatically signed in
+  ↓
+Venue Access
+```
+
+There is no confirmation email and no second login.
+
+### If confirmation is enabled
+
+Signup now supplies a NightLedger Admin redirect URL. Clicking the email
+confirmation returns the browser to `/admin`, where NightLedger completes
+the auth callback before checking the session.
+
+A branded confirmation template is included in:
+
+```text
+supabase/auth-confirmation-email.html
+```
+
+Setup notes:
+
+```text
+supabase/AUTH_SETUP.md
+```
