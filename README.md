@@ -1,97 +1,210 @@
-# NightLedger Mobile v2
+# NightLedger v0.3.1 — No-Login Frontline Capture
 
-## Frontline UX
+OneTime Labs
 
-This build intentionally removes almost everything from the bartender's screen.
+This build changes the most important frontline rule:
 
-### Screen 1
+> **The root NightLedger app never blocks a HOLD behind a login screen.**
 
-One control:
+## Root `/`
 
-**HOLD**
+When a bartender opens:
 
-A normal tap does nothing.
-
-The bartender must deliberately hold for 700 ms. Moving the finger more than 24 px cancels the gesture.
-
-### What gets timestamped
-
-The deliberate completed hold creates the event timestamp:
-
-- `event_at`
-
-The app opening itself is still silently recorded as a launch for future accidental-open auditing, but a launch never becomes an incident.
-
-The user never has to look at or manage that launch record during an incident.
-
-### Screen 2
-
-Once the hold completes, NightLedger stays on the event screen.
-
-It shows:
-
-- the event time;
-- ADD PHOTO;
-- any attached photos;
-- DONE.
-
-That is all.
-
-The event survives browser/PWA reloads because it is persisted locally as `activeEvent`.
-
-### Photos
-
-ADD PHOTO uses:
-
-```html
-<input type="file" accept="image/*" multiple>
+```text
+https://nl.onetimelabs.net/
 ```
 
-There is intentionally no `capture="environment"` attribute.
+NightLedger goes directly to the HOLD button.
 
-That lets the phone offer its normal photo-picker choices, so staff can:
+There are three possible capture modes behind the scenes:
 
-- take a photo from NightLedger when safe; or
-- attach a photo they already took using the phone's normal camera app.
+### 1. Signed-in staff
 
-Every photo is linked to the original `event_at` timestamp.
+If a valid Supabase staff session already exists, the HOLD is saved normally with:
 
-The prototype also stores `attached_at` metadata for later audit/review.
+```text
+created_by = staff user
+capture_mode = authenticated
+```
 
-### Done
+### 2. Enrolled no-login device
 
-DONE closes the quick event and shows a short SAVED confirmation.
+A manager can enroll a venue phone once from:
 
-The future manager web application is where staff can later add:
+```text
+/admin -> Devices
+```
 
-- incident type;
-- narrative;
-- patron identity clues;
-- payment-tab name;
-- bans;
-- police / EMS references;
-- CCTV;
-- corrective action.
+NightLedger generates a one-time enrollment URL such as:
+
+```text
+https://nl.onetimelabs.net/?enroll=<long random device token>
+```
+
+Open that once on the bartender's phone.
+
+The phone stores the scoped capture token locally.
+
+After that, even when there is **no user login session**, HOLD writes directly to the venue backend as:
+
+```text
+capture_mode = guest_device
+capture_device_id = Back Bar iPhone
+created_by = NULL
+event_at = server timestamp
+```
+
+The admin event stream therefore sees:
+
+```text
+10:32:18 PM
+LOGGED HOLD
+Back Bar iPhone
+Needs Review
+```
+
+No employee login was required.
+
+The device token:
+
+- is scoped to one venue;
+- can create/update its own capture events;
+- cannot read venue records;
+- cannot open the admin backend;
+- cannot read patron/evidence data;
+- is stored hashed in PostgreSQL;
+- can be disabled later.
+
+### 3. No session and no enrolled device
+
+NightLedger still does **not** show a login screen.
+
+HOLD is timestamped immediately and saved locally on the phone.
+
+This is the emergency fallback so authentication/network/configuration never prevents the user from preserving the timestamp.
+
+Those local-only events are not yet visible on another device's Admin page. The next enhancement can add a reconciliation/sync workflow.
+
+## Admin `/admin`
+
+Admin still requires authentication.
+
+That is intentional.
+
+Frontline capture and management access have different security requirements:
+
+```text
+/          → never block HOLD
+/admin     → authenticated management
+```
+
+## Database
+
+Run the original backend migration first if you have not already:
+
+```text
+supabase/001_nightledger_backend.sql
+```
+
+Then run:
+
+```text
+supabase/002_unlogged_capture.sql
+```
+
+Migration 002 adds:
+
+```text
+nl_capture_devices
+nl_events.capture_device_id
+nl_events.capture_mode
+nl_events.client_event_at
+```
+
+and the guest-device RPCs.
+
+## Device enrollment
+
+After running migration 002:
+
+```text
+/admin
+  ↓
+Devices
+  ↓
+Device label: Back Bar iPhone
+  ↓
+Generate enrollment link
+```
+
+Open the generated link once on that phone.
+
+After that, the bartender sees only the HOLD workflow whether or not their user login has expired.
+
+## Timestamp behavior
+
+For enrolled devices, NightLedger keeps both:
+
+```text
+event_at         = PostgreSQL server clock
+client_event_at  = device time when HOLD was completed
+```
+
+`event_at` is authoritative.
+
+The phone clock is corroborating metadata only.
+
+## Photos
+
+Authenticated staff can upload photos to the private evidence bucket.
+
+The v0.3.1 no-login device path intentionally guarantees the HOLD and event details first. Device-scoped anonymous photo upload is not enabled yet because private evidence upload needs a separate signed-upload flow rather than opening the Storage bucket to anonymous clients.
 
 ## Run
 
 ```powershell
+cd C:\Projects\VENOPS
 npm install
 npm run dev
 ```
 
-## Build
+Frontline:
+
+```text
+http://localhost:5173/
+```
+
+Admin:
+
+```text
+http://localhost:5173/admin
+```
+
+## Deploy
 
 ```powershell
 npm run build
+git add .
+git commit -m "Add no-login NightLedger capture devices"
+git push
 ```
 
-## Production next step
 
-The mobile app should write the same minimalist flow into Supabase:
+## v0.3.1.1 hotfix
 
-- `nl_app_launches`
-- `nl_events`
-- `nl_event_photos`
+The original v0.3.1 package accidentally updated `MobileApp.js` and
+`AdminApp.js` to import the new no-login capture functions without
+actually adding those exports to `src/lib/api.js`.
 
-Do not put the larger incident form back into this frontline mobile screen.
+That caused Vite to stop at startup with:
+
+```text
+The requested module '/src/lib/api.js' does not provide an export named
+'guestClassifyEvent'
+```
+
+v0.3.1.1 replaces `src/lib/api.js` completely and verifies that every
+named import from it has a matching export.
+
+It also completes the Admin → Devices integration that was partially
+inserted in v0.3.1.

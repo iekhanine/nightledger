@@ -1,7 +1,7 @@
 {
   "name": "NightLedger",
   "short_name": "NightLedger",
-  "description": "One-button incident capture for licensed venues.",
+  "description": "Rapid venue incident capture and management.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -20,14 +20,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Quick Capture",
-      "short_name": "Capture",
-      "description": "Open NightLedger capture.",
-      "url": "/"
     }
   ]
 }
